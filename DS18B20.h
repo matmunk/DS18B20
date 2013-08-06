@@ -3,12 +3,6 @@
 
 #include <OneWire.h>
 
-// 0 = disable alarms, 1 = enable alarms.
-// Disabling alarms may save some space on the Arduino.
-#ifndef ALARMS_ON
-#define ALARMS_ON 1
-#endif
-
 // Commands.
 #define SEARCH_ROM        0xF0
 #define READ_ROM          0x33
@@ -83,7 +77,6 @@ class DS18B20
 		// TRUE = parasite, FALSE = external.
 		uint8_t isParasite(uint8_t address[]);
 
-#if ALARMS_ON
 		// Gets the address of the next active alarm.
 		uint8_t getNextAlarm(uint8_t address[]);
 
@@ -101,7 +94,6 @@ class DS18B20
 
 		// Sets the low alarm.
 		void setAlarmLow(uint8_t alarmLow, uint8_t address[]);
-#endif
 
 	private:
 		// OneWire object needed to communicate with 1-Wire devices.

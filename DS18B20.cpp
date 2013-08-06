@@ -107,7 +107,7 @@ void DS18B20::setResolution(uint8_t resolution)
 {
 	uint8_t address[8];
 
-	while(oneWire.search(address))
+	while(getNextDevice(address))
 	{
 		setResolution(resolution, address);
 	}
@@ -160,7 +160,6 @@ uint8_t DS18B20::isParasite(uint8_t address[])
 	return !oneWire.read_bit();
 }
 
-#if ALARMS_ON
 // Gets the address of the next active alarm.
 uint8_t DS18B20::getNextAlarm(uint8_t address[])
 {
@@ -217,7 +216,6 @@ void DS18B20::setAlarmLow(uint8_t alarmLow, uint8_t address[])
 
 	writeScratchpad(scratchpad, address);
 }
-#endif
 
 // Performs either a SEARCH_ROM or ALARM_SEARCH command.
 // Returns TRUE/FALSE indicating whether the search was successful.
@@ -316,7 +314,10 @@ void DS18B20::writeScratchpad(uint8_t scratchpad[], uint8_t address[])
 
 	sendCommand(COPY_SCRATCHPAD, address, parasite);
 
-	delay(10);
+	if(parasite)
+	{
+		delay(10);
+	}
 }
 
 // Delays for the amount of time required to perform a temperature conversion at the specified resolution.
