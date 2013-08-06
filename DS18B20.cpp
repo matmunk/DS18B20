@@ -41,12 +41,6 @@ float DS18B20::getTempC(uint8_t address[])
 	uint8_t scratchpad[SIZE_SCRATCHPAD];
 	readScratchpad(scratchpad, address);
 
-	// Stored CRC does not match calculated CRC.
-	if(scratchpad[CRC] != oneWire.crc8(scratchpad, 8))
-	{
-		// Do some error handling.
-	}
-
 	uint8_t lsb = scratchpad[TEMP_LSB];
 	uint8_t msb = scratchpad[TEMP_MSB];
 
