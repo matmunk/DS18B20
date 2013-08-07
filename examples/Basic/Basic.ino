@@ -20,8 +20,27 @@ void loop()
   // Iterate through all devices.
   while(ds.getNextDevice(address))
   {
-    // Print the temperature of the current device (in degrees Celcius).
-    Serial.println(ds.getTempC(address));
+    // Print current resolution of the device.
+    Serial.print("Resolution: ");
+    Serial.println(ds.getResolution(address));
+    
+    // Print current power mode of the device.
+    Serial.print("Power Mode: ");
+    if(ds.isParasite(address))
+    {
+      Serial.println("Parasite");
+    }
+    else
+    {
+      Serial.println("External");
+    }
+    
+    // Print current temperature in degrees Celcius and Fahrenheit.
+    Serial.print("Temperature: ");
+    Serial.print(ds.getTempC(address));
+    Serial.print(" C / ");
+    Serial.print(ds.getTempF(address));
+    Serial.println(" F\n");
   }
   
   // Wait 10 seconds.
