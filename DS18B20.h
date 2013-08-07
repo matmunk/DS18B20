@@ -55,6 +55,9 @@ class DS18B20
 		// Resets the search so that the next search will return the first device again.
 		void resetSearch();
 
+		// Tells every device to start a temperature conversion.
+		void startConversion();
+
 		// Returns the current temperature in degrees Celcius.
 		float getTempC(uint8_t address[]);
 
@@ -81,13 +84,7 @@ class DS18B20
 		uint8_t getNextAlarm(uint8_t address[]);
 
 		// Sets both high and low alarms.
-		void setAlarms(uint8_t alarmHigh, uint8_t alarmLow, uint8_t address[]);
-
-		// Returns the value of the high alarm.
-		uint8_t getAlarmHigh(uint8_t address[]);
-
-		// Sets the high alarm.
-		void setAlarmHigh(uint8_t alarmHigh, uint8_t address[]);
+		void setAlarms(uint8_t alarmLow, uint8_t alarmHigh, uint8_t address[]);
 
 		// Returns the value of the low alarm.
 		uint8_t getAlarmLow(uint8_t address[]);
@@ -95,12 +92,15 @@ class DS18B20
 		// Sets the low alarm.
 		void setAlarmLow(uint8_t alarmLow, uint8_t address[]);
 
+		// Returns the value of the high alarm.
+		uint8_t getAlarmHigh(uint8_t address[]);
+
+		// Sets the high alarm.
+		void setAlarmHigh(uint8_t alarmHigh, uint8_t address[]);
+
 	private:
 		// OneWire object needed to communicate with 1-Wire devices.
 		OneWire oneWire;
-
-		// The pin that the 1-Wire devices are connected to.
-		uint8_t pin;
 
 		// Global search state.
 		uint8_t romBit[64];
@@ -119,6 +119,9 @@ class DS18B20
 
 		// Delays for the amount of time required to perform a temperature conversion at the specified resolution.
 		void delayForConversion(uint8_t resolution);
+
+		// Sends a command to all devices, with or without parasitic power at the end.
+		void sendCommand(uint8_t command, uint8_t parasite = 0);
 
 		// Sends a command to a device, with or without parasitic power at the end.
 		void sendCommand(uint8_t command, uint8_t address[], uint8_t parasite = 0);

@@ -1,8 +1,7 @@
 #include <DS18B20.h>
 
-DS18B20::DS18B20(uint8_t _pin) : oneWire(OneWire(_pin))
+DS18B20::DS18B20(uint8_t pin) : oneWire(OneWire(pin))
 {
-	pin = _pin;
 	resetSearch();
 }
 
@@ -17,6 +16,16 @@ void DS18B20::resetSearch()
 {
 	lastDiscrepancy = 0;
 	searchDone = 0;
+}
+
+// Tells every device to start a temperature conversion.
+void DS18B20::startConversion()
+{
+	// Ask all devices to start a temperature conversion.
+	sendCommand(CONVERT_T, 1);
+
+	// Delay for the worst-case conversion time.
+	delay(CONV_TIME_12_BIT);
 }
 
 // Returns the current temperature in degrees Celcius.
@@ -161,12 +170,31 @@ uint8_t DS18B20::getNextAlarm(uint8_t address[])
 }
 
 // Sets both high and low alarms.
-void DS18B20::setAlarms(uint8_t alarmHigh, uint8_t alarmLow, uint8_t address[])
+void DS18B20::setAlarms(uint8_t alarmLow, uint8_t alarmHigh, uint8_t address[])
 {
 	uint8_t scratchpad[SIZE_SCRATCHPAD];
 	readScratchpad(scratchpad, address);
 
+	scratchpad[ALARM_LOW] = alarmLow;
 	scratchpad[ALARM_HIGH] = alarmHigh;
+
+	writeScratchpad(scratchpad, address);
+}
+
+// Returns the value of the low alarm.
+uint8_t DS18B20::getAlarmLow(uint8_t address[]) {
+	uint8_t scratchpad[SIZE_SCRATCHPAD];
+	readScratchpad(scratchpad, address);
+
+	return scratchpad[ALARM_LOW];
+}
+
+// Sets the low alarm.
+void DS18B20::setAlarmLow(uint8_t alarmLow, uint8_t address[])
+{
+	uint8_t scratchpad[SIZE_SCRATCHPAD];
+	readScratchpad(scratchpad, address);
+
 	scratchpad[ALARM_LOW] = alarmLow;
 
 	writeScratchpad(scratchpad, address);
@@ -188,25 +216,6 @@ void DS18B20::setAlarmHigh(uint8_t alarmHigh, uint8_t address[])
 	readScratchpad(scratchpad, address);
 
 	scratchpad[ALARM_HIGH] = alarmHigh;
-
-	writeScratchpad(scratchpad, address);
-}
-
-// Returns the value of the low alarm.
-uint8_t DS18B20::getAlarmLow(uint8_t address[]) {
-	uint8_t scratchpad[SIZE_SCRATCHPAD];
-	readScratchpad(scratchpad, address);
-
-	return scratchpad[ALARM_LOW];
-}
-
-// Sets the low alarm.
-void DS18B20::setAlarmLow(uint8_t alarmLow, uint8_t address[])
-{
-	uint8_t scratchpad[SIZE_SCRATCHPAD];
-	readScratchpad(scratchpad, address);
-
-	scratchpad[ALARM_LOW] = alarmLow;
 
 	writeScratchpad(scratchpad, address);
 }
@@ -336,6 +345,19 @@ void DS18B20::delayForConversion(uint8_t resolution)
 			delay(CONV_TIME_12_BIT);
 			break;
 	}
+}
+
+// Sends a command to all devices, with or without parasitic power at the end.
+void DS18B20::sendCommand(uint8_t command, uint8_t parasite)
+{
+	if(!oneWire.reset())
+	{
+		// Do some error handling.
+	}
+
+	oneWire.skip();
+
+	oneWire.write(command, parasite);
 }
 
 // Sends a command to a device, with or without parasitic power at the end.
