@@ -26,6 +26,7 @@ void loop()
     
     // Print current power mode of the device.
     Serial.print("Power Mode: ");
+    
     if(ds.isParasite(address))
     {
       Serial.println("Parasite");
