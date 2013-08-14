@@ -13,6 +13,11 @@ void setup()
   
   // Set the resolution to 12 bit on all devices.
   ds.setResolution(12);
+  
+  // Print the number of devices.
+  Serial.print("Number of Devices: ");
+  Serial.println(ds.getNumberOfDevices());
+  Serial.println();
 }
 
 void loop()
@@ -20,6 +25,16 @@ void loop()
   // Iterate through all devices.
   while(ds.getNextDevice(address))
   {
+    // Print family name.
+    if(ds.getFamilyCode(address) == MODEL_DS18B20)
+    {
+      Serial.println("Model: DS18B20");
+    }
+    else
+    {
+      Serial.println("Unrecognized Device");
+    }
+    
     // Print current resolution of the device.
     Serial.print("Resolution: ");
     Serial.println(ds.getResolution(address));
