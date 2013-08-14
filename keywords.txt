@@ -6,6 +6,7 @@ getTempC	KEYWORD2
 getTempF	KEYWORD2
 getResolution	KEYWORD2
 setResolution	KEYWORD2
+getNumberOfDevices	KEYWORD2
 getFamilyCode	KEYWORD2
 isParasite	KEYWORD2
 getNextAlarm	KEYWORD2
@@ -14,3 +15,8 @@ getAlarmLow	KEYWORD2
 setAlarmLow	KEYWORD2
 getAlarmHigh	KEYWORD2
 setAlarmHigh	KEYWORD2
+setRegisters	KEYWORD2
+getFirstRegister	KEYWORD2
+setFirstRegister	KEYWORD2
+getSecondRegister	KEYWORD2
+setSecondRegister	KEYWORD2
