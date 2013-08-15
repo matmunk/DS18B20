@@ -73,19 +73,22 @@ class DS18B20
 		DS18B20(uint8_t pin);
 
 		// Gets the address of the next device.
-		uint8_t getNextDevice(uint8_t address[]);
+		uint8_t getNextDevice(uint8_t address[]) { return search(SEARCH_ROM, address); }
 
 		// Resets the search so that the next search will return the first device again.
 		void resetSearch();
 
-		// Tells every device to start a temperature conversion.
-		void startConversion();
+		// Tells every device to start a temperature conversion and delays until it is completed.
+		void doConversion();
+
+		// Tells a device to start a temperature conversion and delays until it is completed.
+		void doConversion(uint8_t address[]);
 
 		// Returns the current temperature in degrees Celcius.
 		float getTempC(uint8_t address[]);
 
 		// Returns the current temperature in degrees Fahrenheit.
-		float getTempF(uint8_t address[]);
+		float getTempF(uint8_t address[]) { return getTempC(address) * 1.8 + 32; }
 
 		// Returns the resolution of a device.
 		uint8_t getResolution(uint8_t address[]);
@@ -97,16 +100,19 @@ class DS18B20
 		void setResolution(uint8_t resolution, uint8_t address[]);
 
 		// Returns the total number of devices on the wire.
-		uint8_t getNumberOfDevices();
+		uint8_t getNumberOfDevices() { return devices; }
 
 		// Returns the family code of a device.
-		uint8_t getFamilyCode(uint8_t address[]);
+		uint8_t getFamilyCode(uint8_t address[]) { return address[0]; }
 
 		// Returns the power mode of a device. 1 = parasite, 0 = external.
 		uint8_t isParasite(uint8_t address[]);
 
 		// Gets the address of the next active alarm.
-		uint8_t getNextAlarm(uint8_t address[]);
+		uint8_t getNextAlarm(uint8_t address[]) { return search(ALARM_SEARCH, address); }
+
+		// Checks if a device has an alarm condition. 1 = alarm, 0 = no alarm.
+		uint8_t hasAlarm(uint8_t address[]);
 
 		// Sets both high and low alarms.
 		void setAlarms(uint8_t alarmLow, uint8_t alarmHigh, uint8_t address[]);

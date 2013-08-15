@@ -58,12 +58,6 @@ DS18B20::DS18B20(uint8_t pin) : oneWire(OneWire(pin))
 	}
 }
 
-// Gets the address of the next device.
-uint8_t DS18B20::getNextDevice(uint8_t address[])
-{
-	return search(SEARCH_ROM, address);
-}
-
 // Resets the search so that the next search will return the first device again.
 void DS18B20::resetSearch()
 {
@@ -71,16 +65,16 @@ void DS18B20::resetSearch()
 	lastDevice = 0;
 }
 
-// Tells every device to start a temperature conversion.
-void DS18B20::startConversion()
+// Tells every device to start a temperature conversion and delays until it is completed.
+void DS18B20::doConversion()
 {
 	sendCommand(CONVERT_T, globalParasite);
 
 	delayForConversion(maxResolution, globalParasite);
 }
 
-// Returns the current temperature in degrees Celcius.
-float DS18B20::getTempC(uint8_t address[])
+// Tells a device to start a temperature conversion and delays until it is completed.
+void DS18B20::doConversion(uint8_t address[])
 {
 	uint8_t resolution = getResolution(address);
 	uint8_t parasite = isParasite(address);
@@ -88,11 +82,19 @@ float DS18B20::getTempC(uint8_t address[])
 	sendCommand(CONVERT_T, address, parasite);
 
 	delayForConversion(resolution, parasite);
+}
+
+// Returns the current temperature in degrees Celcius.
+float DS18B20::getTempC(uint8_t address[])
+{
+	doConversion(address);
 
 	readScratchpad(address);
 
 	uint8_t lsb = scratchpad[TEMP_LSB];
 	uint8_t msb = scratchpad[TEMP_MSB];
+
+	uint8_t resolution = getResolution(address);
 
 	// Trim low-order byte according to resolution.
 	switch(resolution)
@@ -121,12 +123,6 @@ float DS18B20::getTempC(uint8_t address[])
 	}
 
 	return temp / 16.0;
-}
-
-// Returns the current temperature in degrees Fahrenheit.
-float DS18B20::getTempF(uint8_t address[])
-{
-	return getTempC(address) * 1.8 + 32;
 }
 
 // Returns the resolution of a device.
@@ -197,19 +193,6 @@ void DS18B20::setResolution(uint8_t resolution, uint8_t address[])
 	}
 }
 
-// Returns the total number of devices on the wire.
-uint8_t DS18B20::getNumberOfDevices()
-{
-	return devices;
-}
-
-// Returns the family code of a device.
-uint8_t DS18B20::getFamilyCode(uint8_t address[])
-{
-	// Family code is the low-order byte of the address.
-	return address[0];
-}
-
 // Returns the power mode of a device. 1 = parasite, 0 = external.
 uint8_t DS18B20::isParasite(uint8_t address[])
 {
@@ -219,10 +202,22 @@ uint8_t DS18B20::isParasite(uint8_t address[])
 	return !oneWire.read_bit();
 }
 
-// Gets the address of the next active alarm.
-uint8_t DS18B20::getNextAlarm(uint8_t address[])
+uint8_t DS18B20::hasAlarm(uint8_t address[])
 {
-	return search(ALARM_SEARCH, address);
+	// Save old resolution.
+	uint8_t oldResolution = getResolution(address);
+
+	// Set resolution to 9 bits since we wont use the fractional part in the comparison anyway.
+	setResolution(9, address);
+
+	float temp = getTempC(address);
+
+	if(temp <= scratchpad[ALARM_LOW] || temp >= scratchpad[ALARM_HIGH])
+	{
+		return 1;
+	}
+
+	return 0;
 }
 
 // Sets both high and low alarms.
@@ -382,7 +377,7 @@ void DS18B20::writeScratchpad(uint8_t address[])
 	// Start write sequence.
 	sendCommand(WRITE_SCRATCHPAD, address);
 
-	// Write scratchpad buffer to device.
+	// Write scratchpad buffer to the device.
 	oneWire.write(scratchpad[ALARM_HIGH]);
 	oneWire.write(scratchpad[ALARM_LOW]);
 	oneWire.write(scratchpad[CONFIGURATION]);
@@ -390,7 +385,7 @@ void DS18B20::writeScratchpad(uint8_t address[])
 	// Write scratchpad to EEPROM.
 	sendCommand(COPY_SCRATCHPAD, address, parasite);
 
-	// Delay for 10 ms if the sensor is running in parasitic power mode according to datasheet.
+	// Delay for 10 ms if the device is running in parasitic power mode according to datasheet.
 	if(parasite)
 	{
 		delay(10);
