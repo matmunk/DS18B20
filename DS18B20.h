@@ -28,20 +28,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // Commands.
 #define SEARCH_ROM        0xF0
-#define READ_ROM          0x33 // Currently not used.
-#define MATCH_ROM         0x55 // Currently not used.
-#define SKIP_ROM          0xCC // Currently not used.
+#define READ_ROM          0x33
+#define MATCH_ROM         0x55
+#define SKIP_ROM          0xCC
 #define ALARM_SEARCH      0xEC
 #define CONVERT_T         0x44
 #define WRITE_SCRATCHPAD  0x4E
 #define READ_SCRATCHPAD   0xBE
 #define COPY_SCRATCHPAD   0x48
-#define RECALL            0xB8 // Currently not used.
+#define RECALL            0xB8
 #define READ_POWER_SUPPLY 0xB4
 
 // Family codes.
-#define MODEL_DS18S20 0x10 // Currently not supported.
-#define MODEL_DS1822  0x22 // Currently not supported.
+#define MODEL_DS18S20 0x10
+#define MODEL_DS1820  0x22
 #define MODEL_DS18B20 0x28
 
 // Size of the scratchpad in bytes.
@@ -61,7 +61,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RES_11_BIT 0x5F
 #define RES_12_BIT 0x7F
 
-// Rounded up worst-case conversion times in milliseconds for different resolutions.
+// Rounded up worst-case conversion times in milliseconds at different resolutions.
 #define CONV_TIME_9_BIT  94
 #define CONV_TIME_10_BIT 188
 #define CONV_TIME_11_BIT 375
@@ -72,128 +72,178 @@ class DS18B20
 	public:
 		DS18B20(uint8_t pin);
 
-		// Gets the address of the next device.
-		uint8_t getNextDevice(uint8_t address[]) { return search(SEARCH_ROM, address); }
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Before communicating with a device it must be selected using one of the functions below (except resetSearch). //
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		// Selects the device with the specified address if it is present.
+		uint8_t select(uint8_t address[]);
+
+		// Selects the next device.
+		uint8_t selectNext();
+
+		// Selects the next device with an active alarm condition.
+		uint8_t selectNextAlarm();
 
 		// Resets the search so that the next search will return the first device again.
 		void resetSearch();
 
-		// Tells every device to start a temperature conversion and delays until it is completed.
-		void doConversion();
 
-		// Tells a device to start a temperature conversion and delays until it is completed.
-		void doConversion(uint8_t address[]);
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// After successfully selecting a device these functions can be used to communicate with the selected device. //
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		// Returns the current temperature in degrees Celcius.
-		float getTempC(uint8_t address[]);
+		float getTempC();
 
 		// Returns the current temperature in degrees Fahrenheit.
-		float getTempF(uint8_t address[]) { return getTempC(address) * 1.8 + 32; }
+		float getTempF();
 
-		// Returns the resolution of a device.
-		uint8_t getResolution(uint8_t address[]);
+		// Returns the resolution of the selected device.
+		uint8_t getResolution();
 
-		// Sets the resolution of every device.
+		// Sets the resolution of the selected device.
 		void setResolution(uint8_t resolution);
 
-		// Sets the resolution of a device.
-		void setResolution(uint8_t resolution, uint8_t address[]);
+		// Returns the power mode of the selected device.
+		uint8_t getPowerMode();
 
-		// Returns the total number of devices on the wire.
-		uint8_t getNumberOfDevices() { return devices; }
+		// Returns the family code of the selected device.
+		uint8_t getFamilyCode();
 
-		// Returns the family code of a device.
-		uint8_t getFamilyCode(uint8_t address[]) { return address[0]; }
-
-		// Returns the power mode of a device. 1 = parasite, 0 = external.
-		uint8_t isParasite(uint8_t address[]);
-
-		// Gets the address of the next active alarm.
-		uint8_t getNextAlarm(uint8_t address[]) { return search(ALARM_SEARCH, address); }
-
-		// Checks if a device has an alarm condition. 1 = alarm, 0 = no alarm.
-		uint8_t hasAlarm(uint8_t address[]);
-
-		// Sets both high and low alarms.
-		void setAlarms(uint8_t alarmLow, uint8_t alarmHigh, uint8_t address[]);
-
-		// Returns the value of the low alarm.
-		uint8_t getAlarmLow(uint8_t address[]);
-
-		// Sets the low alarm.
-		void setAlarmLow(uint8_t alarmLow, uint8_t address[]);
-
-		// Returns the value of the high alarm.
-		uint8_t getAlarmHigh(uint8_t address[]);
-
-		// Sets the high alarm.
-		void setAlarmHigh(uint8_t alarmHigh, uint8_t address[]);
+		// Copies the address of the selected device into the supplied array.
+		void getAddress(uint8_t address[]);
 
 
-		///////////////////////////////////////////////////////////////////////////
-		// Alias functions for using alarm registers as general purpose storage. //
-		//             Should not be used in conjunction with alarms.            //
-		///////////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////////////////////
+		// These functions are "global", and may be used without first selecting a device. //
+		/////////////////////////////////////////////////////////////////////////////////////
 
-		// Same as setAlarms.
-		void setRegisters(uint8_t firstValue, uint8_t secondValue, uint8_t address[]) { setAlarms(firstValue, secondValue, address); }
+		// Tells every device on the bus to start a temperature conversion and delays until it is completed.
+		void doConversion();
 
-		// Same as getAlarmLow.
-		uint8_t getFirstRegister(uint8_t address[]) { return getAlarmLow(address); }
+		// Returns the number of devices present on the bus.
+		uint8_t getNumberOfDevices();
 
-		// Same as setAlarmLow.
-		void setFirstRegister(uint8_t value, uint8_t address[]) { setAlarmLow(value, address); }
 
-		// Same as getAlarmHigh.
-		uint8_t getSecondRegister(uint8_t address[]) { return getAlarmHigh(address); }
+		//////////////////////////////
+		// Alarm related functions. //
+		//////////////////////////////
 
-		// Same as setAlarmHigh.
-		void setSecondRegister(uint8_t value, uint8_t address[]) { setAlarmHigh(value, address); }
+		// Checks if the selected device has an active alarm condition.
+		uint8_t hasAlarm();
+
+		// Sets both alarms of the selected device.
+		void setAlarms(uint8_t alarmLow, uint8_t alarmHigh);
+
+		// Returns the low alarm value of the selected device.
+		uint8_t getAlarmLow();
+
+		// Sets the low alarm value of the selected device.
+		void setAlarmLow(uint8_t alarmLow);
+
+		// Returns the high alarm value of the selected device.
+		uint8_t getAlarmHigh();
+
+		// Sets the high alarm value of the selected device.
+		void setAlarmHigh(uint8_t alarmHigh);
+
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Some more appropriate function names if the alarm registers are to be used as general purpose storage. //
+		//                            DO NOT use these if you are already using alarms.                           //
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		// Sets both registers of the selected device.
+		void setRegisters(uint8_t lowRegister, uint8_t highRegister);
+
+		// Returns the low register value of the selected device.
+		uint8_t getLowRegister();
+
+		// Sets the low register value of the selected device.
+		void setLowRegister(uint8_t lowRegister);
+
+		// Returns the high register value of the selected device.
+		uint8_t getHighRegister();
+
+		// Sets the high register value of the selected device.
+		void setHighRegister(uint8_t highRegister);
 
 	private:
 		// OneWire object needed to communicate with 1-Wire devices.
 		OneWire oneWire;
 
-		// Scratchpad buffer.
-		uint8_t scratchpad[SIZE_SCRATCHPAD];
 
-		// Highest resolution of any device on the wire.
-		uint8_t maxResolution;
+		//////////////////////////////////////////////////////////////
+		// Collective information about all the devices on the bus. //
+		//////////////////////////////////////////////////////////////
 
-		// 1 = At least one device on the wire is running in parasitic power mode.
-		// 0 = All devices on the wire are running on external power. 
-		uint8_t globalParasite;
+		// The highest resolution of any device on the bus.
+		uint8_t globalResolution;
 
-		// The total number of devices on the wire.
-		uint8_t devices;
+		// Whether every single device on the bus is being powered externally.
+		uint8_t globalPowerMode;
 
-		// Previous and current registration number. Used in search.
-		uint8_t registrationNumber[8];
+		// The number of devices on the bus.
+		uint8_t numberOfDevices;
 
-		// The bit position in the registration number where the last discrepancy was.
+
+		////////////////////////////////////////////
+		// Information about the selected device. //
+		////////////////////////////////////////////
+
+		// 64 bit address of the selected device.
+		uint8_t selectedAddress[8];
+
+		// Scratchpad of the selected device.
+		uint8_t selectedScratchpad[SIZE_SCRATCHPAD];
+
+		// Resolution of the selected device.
+		uint8_t selectedResolution;
+
+		// Power mode of the selected device.
+		uint8_t selectedPowerMode;
+
+
+		/////////////////////////////////////
+		// Global search state parameters. //
+		/////////////////////////////////////
+
+		// Most recent address discovered by searching.
+		uint8_t searchAddress[8];
+
+		// The bit position where the last discrepancy was.
 		uint8_t lastDiscrepancy;
 
 		// Indicates whether or not a search is completed (i.e. last device has been found).
 		uint8_t lastDevice;
 
-		// Performs either a SEARCH_ROM or ALARM_SEARCH command.
-		// Returns 1 or 0 indicating whether the search was successful or not.
-		uint8_t search(uint8_t command, uint8_t address[]);
 
-		// Reads the scratchpad of a device.
-		void readScratchpad(uint8_t address[]);
+		//////////////////////////////////
+		// Various auxiliary functions. //
+		//////////////////////////////////
 
-		// Writes the scratchpad of a device into its EEPROM.
-		void writeScratchpad(uint8_t address[]);
+		// Reads the scratchpad of the selected device.
+		uint8_t readScratchpad();
 
-		// Delays for the amount of time required to perform a temperature conversion at the specified resolution.
-		void delayForConversion(uint8_t resolution, uint8_t parasite);
+		// Writes the scratchpad of the selected device into its EEPROM.
+		void writeScratchpad();
 
-		// Sends a command to all devices, with or without parasitic power at the end.
-		void sendCommand(uint8_t command, uint8_t parasite = 0);
+		// Sends a rom command to the selected device.
+		uint8_t sendCommand(uint8_t romCommand);
 
-		// Sends a command to a device, with or without parasitic power at the end.
-		void sendCommand(uint8_t command, uint8_t address[], uint8_t parasite = 0);
+		// Sends a rom command followed by a function command to the selected device, with or without power on at the end.
+		uint8_t sendCommand(uint8_t romCommand, uint8_t functionCommand, uint8_t power = 0);
+
+		// Performs a 1-Wire search, either normal or conditional.
+		uint8_t oneWireSearch(uint8_t romCommand);
+
+		// Checks if the specified device is present on the bus.
+		uint8_t isConnected(uint8_t address[]);
+
+		// Delays for the amount of time required to perform a temperature conversion at the specified resolution and power mode.
+		void delayForConversion(uint8_t resolution, uint8_t powerMode);
 };
 
 #endif

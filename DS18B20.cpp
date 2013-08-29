@@ -25,37 +25,77 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 DS18B20::DS18B20(uint8_t pin) : oneWire(OneWire(pin))
 {
-	// Initialize to 9 bit, which is the lowest possible resolution.
-	maxResolution = 9;
-
-	// Start by assuming that all devices are running on external power.
-	globalParasite = 0;
-
-	devices = 0;
-
 	// Reset search in order to initialize search variables.
 	resetSearch();
 
-	uint8_t address[8];
+	// Tell every device on the bus to transmit their power mode.
+	sendCommand(SKIP_ROM, READ_POWER_SUPPLY);
 
-	// Determine highest resolution of any device and whether any device is running in parasitic power mode.
-	while(getNextDevice(address))
+	// The result is a logical AND of all the bits sent, so that 0 = at least one device is running in parasitic power mode.
+	globalPowerMode = oneWire.read_bit();
+
+	// Determine the highest resolution of any device on the bus.
+	while(selectNext())
 	{
-		uint8_t resolution = getResolution(address);
+		uint8_t resolution = getResolution();
 
-		if(resolution > maxResolution)
+		if(resolution > globalResolution)
 		{
-			maxResolution = resolution;
+			globalResolution = resolution;
 		}
 
-		if(isParasite(address))
-		{
-			globalParasite = 1;
-		}
-
-		// Count the number of devices.
-		devices++;
+		// Count the number of devices on the bus.
+		numberOfDevices++;
 	}
+}
+
+// Selects the device with the specified address if it is present.
+uint8_t DS18B20::select(uint8_t address[])
+{
+	// Check if the device is connected.
+	if(isConnected(address))
+	{
+		// Store address in RAM.
+		memcpy(selectedAddress, address, 8);
+
+		// Attempt to read scratchpad.
+		if(readScratchpad())
+		{
+			// Determine resolution of the device.
+			selectedResolution = getResolution();
+
+			// Tell the device to transmit its power mode.
+			sendCommand(MATCH_ROM, READ_POWER_SUPPLY);
+
+			selectedPowerMode = oneWire.read_bit();
+
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+// Selects the next device.
+uint8_t DS18B20::selectNext()
+{
+	if(oneWireSearch(SEARCH_ROM))
+	{
+		return select(searchAddress);
+	}
+
+	return 0;
+}
+
+// Selects the next device with an active alarm condition.
+uint8_t DS18B20::selectNextAlarm()
+{
+	if(oneWireSearch(ALARM_SEARCH))
+	{
+		return select(searchAddress);
+	}
+
+	return 0;
 }
 
 // Resets the search so that the next search will return the first device again.
@@ -65,39 +105,23 @@ void DS18B20::resetSearch()
 	lastDevice = 0;
 }
 
-// Tells every device to start a temperature conversion and delays until it is completed.
-void DS18B20::doConversion()
-{
-	sendCommand(CONVERT_T, globalParasite);
-
-	delayForConversion(maxResolution, globalParasite);
-}
-
-// Tells a device to start a temperature conversion and delays until it is completed.
-void DS18B20::doConversion(uint8_t address[])
-{
-	uint8_t resolution = getResolution(address);
-	uint8_t parasite = isParasite(address);
-
-	sendCommand(CONVERT_T, address, parasite);
-
-	delayForConversion(resolution, parasite);
-}
-
 // Returns the current temperature in degrees Celcius.
-float DS18B20::getTempC(uint8_t address[])
+float DS18B20::getTempC()
 {
-	doConversion(address);
+	// Tell the device to start temperature conversion.
+	sendCommand(MATCH_ROM, CONVERT_T, !selectedPowerMode);
 
-	readScratchpad(address);
+	// Delay until the temperature conversion is completed.
+	delayForConversion(selectedResolution, selectedPowerMode);
 
-	uint8_t lsb = scratchpad[TEMP_LSB];
-	uint8_t msb = scratchpad[TEMP_MSB];
+	// Read scratchpad. Only first two bytes are needed to calculate temperature.
+	readScratchpad();
 
-	uint8_t resolution = getResolution(address);
+	uint8_t lsb = selectedScratchpad[TEMP_LSB];
+	uint8_t msb = selectedScratchpad[TEMP_MSB];
 
 	// Trim low-order byte according to resolution.
-	switch(resolution)
+	switch(selectedResolution)
 	{
 		case 9:
 			lsb &= 0xF8; // Remove bits 0, 1 and 2.
@@ -125,14 +149,17 @@ float DS18B20::getTempC(uint8_t address[])
 	return temp / 16.0;
 }
 
-// Returns the resolution of a device.
-uint8_t DS18B20::getResolution(uint8_t address[])
+// Returns the current temperature in degrees Fahrenheit.
+float DS18B20::getTempF()
 {
-	// Get resolution from device.
-	readScratchpad(address);
+	return getTempC() * 1.8 + 32;
+}
 
+// Returns the resolution of the selected device.
+uint8_t DS18B20::getResolution()
+{
 	// Extract resolution from scratchpad buffer and return it.
-	switch(scratchpad[CONFIGURATION])
+	switch(selectedScratchpad[CONFIGURATION])
 	{
 		case RES_9_BIT:
 			return 9;
@@ -145,161 +172,279 @@ uint8_t DS18B20::getResolution(uint8_t address[])
 	}
 }
 
-// Sets the resolution of every device.
+// Sets the resolution of the selected device.
 void DS18B20::setResolution(uint8_t resolution)
 {
-	uint8_t address[8];
-
-	// Iterate through all devices and set their resolution.
-	while(getNextDevice(address))
-	{
-		setResolution(resolution, address);
-	}
-}
-
-// Sets the resolution of a device.
-void DS18B20::setResolution(uint8_t resolution, uint8_t address[])
-{
-	// Get alarm values from device and store them in scratchpad buffer (this avoids overwriting them).
-	readScratchpad(address);
-
-	// Make sure that resolution is in range [9;12].
+	// Make sure that the new resolution is in range [9;12].
 	resolution = constrain(resolution, 9, 12);
 
 	// Set new resolution in scratchpad buffer.
 	switch(resolution)
 	{
 		case 9:
-			scratchpad[CONFIGURATION] = RES_9_BIT;
+			selectedScratchpad[CONFIGURATION] = RES_9_BIT;
 			break;
 		case 10:
-			scratchpad[CONFIGURATION] = RES_10_BIT;
+			selectedScratchpad[CONFIGURATION] = RES_10_BIT;
 			break;
 		case 11:
-			scratchpad[CONFIGURATION] = RES_11_BIT;
+			selectedScratchpad[CONFIGURATION] = RES_11_BIT;
 			break;
 		case 12:
-			scratchpad[CONFIGURATION] = RES_12_BIT;
+			selectedScratchpad[CONFIGURATION] = RES_12_BIT;
 			break;
+	}
+
+	// Update global resolution if necessary.
+	if(resolution > globalResolution)
+	{
+		globalResolution = resolution;
 	}
 
 	// Write scratchpad buffer to EEPROM.
-	writeScratchpad(address);
+	writeScratchpad();
+}
 
-	// Update max resolution if necessary.
-	if(resolution > maxResolution)
+// Returns the power mode of the selected device.
+uint8_t DS18B20::getPowerMode()
+{
+	return selectedPowerMode;
+}
+
+// Returns the family code of the selected device.
+uint8_t DS18B20::getFamilyCode()
+{
+	return selectedAddress[0];
+}
+
+// Copies the address of the selected device into the supplied array.
+void DS18B20::getAddress(uint8_t address[])
+{
+	memcpy(address, selectedAddress, 8);
+}
+
+// Tells every device on the bus to start a temperature conversion and delays until it is completed.
+void DS18B20::doConversion()
+{
+	// Tell every device on the bus to start a temperature conversion.
+	sendCommand(SKIP_ROM, CONVERT_T, !globalPowerMode);
+
+	// Delay until the temperature conversion is completed.
+	delayForConversion(globalResolution, globalPowerMode);
+}
+
+// Returns the number of devices present on the bus.
+uint8_t DS18B20::getNumberOfDevices()
+{
+	return numberOfDevices;
+}
+
+// Checks if the selected device has an active alarm condition.
+uint8_t DS18B20::hasAlarm()
+{
+	// Perform comparison at the lowest possible resolution, since the alarm registers are only 8 bit anyway.
+	uint8_t oldResolution = selectedResolution;
+
+	// Set resolution to 9 bit.
+	setResolution(9);
+
+	// Get current temperature.
+	float temp = getTempC();
+
+	// Restore old resolution.
+	setResolution(oldResolution);
+
+	// Compare current temperature to low and high alarms.
+	return ((temp <= selectedScratchpad[ALARM_LOW]) || (temp >= selectedScratchpad[ALARM_HIGH]));
+}
+
+// Sets both alarms of the selected device.
+void DS18B20::setAlarms(uint8_t alarmLow, uint8_t alarmHigh)
+{
+	// Update scratchpad buffer.
+	selectedScratchpad[ALARM_LOW] = alarmLow;
+	selectedScratchpad[ALARM_HIGH] = alarmHigh;
+
+	// Write scratchpad buffer to the EEPROM of the device.
+	writeScratchpad();
+}
+
+// Returns the low alarm value of the selected device.
+uint8_t DS18B20::getAlarmLow()
+{
+	return selectedScratchpad[ALARM_LOW];
+}
+
+// Sets the low alarm value of the selected device.
+void DS18B20::setAlarmLow(uint8_t alarmLow)
+{
+	// Update scratchpad buffer.
+	selectedScratchpad[ALARM_LOW] = alarmLow;
+
+	// Write scratchpad buffer to the EEPROM of the device.
+	writeScratchpad();
+}
+
+// Returns the high alarm value of the selected device.
+uint8_t DS18B20::getAlarmHigh()
+{
+	return selectedScratchpad[ALARM_HIGH];
+}
+
+// Sets the high alarm value of the selected device.
+void DS18B20::setAlarmHigh(uint8_t alarmHigh)
+{
+	// Update scratchpad buffer.
+	selectedScratchpad[ALARM_HIGH] = alarmHigh;
+
+	// Write scratchpad buffer to the EEPROM of the device.
+	writeScratchpad();
+}
+
+// Sets both registers of the selected device.
+void DS18B20::setRegisters(uint8_t lowRegister, uint8_t highRegister)
+{
+	setAlarms(lowRegister, highRegister);
+}
+
+// Returns the low register value of the selected device.
+uint8_t DS18B20::getLowRegister()
+{
+	return getAlarmLow();
+}
+
+// Sets the low register value of the selected device.
+void DS18B20::setLowRegister(uint8_t lowRegister)
+{
+	setAlarmLow(lowRegister);
+}
+
+// Returns the high register value of the selected device.
+uint8_t DS18B20::getHighRegister()
+{
+	return getAlarmHigh();
+}
+
+// Sets the high register value of the selected device.
+void DS18B20::setHighRegister(uint8_t highRegister)
+{
+	setAlarmHigh(highRegister);
+}
+
+// Reads the scratchpad of the selected device.
+uint8_t DS18B20::readScratchpad()
+{
+	// Start reading sequence.
+	sendCommand(MATCH_ROM, READ_SCRATCHPAD);
+
+	// Read entire scratchpad of the device.
+	for(uint8_t i = 0; i < SIZE_SCRATCHPAD; i++)
 	{
-		maxResolution = resolution;
+		selectedScratchpad[i] = oneWire.read();
+	}
+
+	// Return result of CRC.
+	return OneWire::crc8(selectedScratchpad, 8) == selectedScratchpad[CRC];
+}
+
+// Writes the scratchpad of the selected device into its EEPROM.
+void DS18B20::writeScratchpad()
+{
+	// Start write sequence.
+	sendCommand(MATCH_ROM, WRITE_SCRATCHPAD);
+
+	// Write scratchpad buffer to the device.
+	oneWire.write(selectedScratchpad[ALARM_HIGH]);
+	oneWire.write(selectedScratchpad[ALARM_LOW]);
+	oneWire.write(selectedScratchpad[CONFIGURATION]);
+
+	// Write scratchpad to EEPROM.
+	sendCommand(MATCH_ROM, COPY_SCRATCHPAD, !selectedPowerMode);
+
+	// Delay for 10 ms if the device is running in parasitic power mode according to datasheet.
+	if(!selectedPowerMode)
+	{
+		delay(10);
 	}
 }
 
-// Returns the power mode of a device. 1 = parasite, 0 = external.
-uint8_t DS18B20::isParasite(uint8_t address[])
+// Sends a rom command to the selected device.
+uint8_t DS18B20::sendCommand(uint8_t romCommand)
 {
-	sendCommand(READ_POWER_SUPPLY, address);
-
-	// Read bit. 0 = parasite, 1 = external.
-	return !oneWire.read_bit();
-}
-
-uint8_t DS18B20::hasAlarm(uint8_t address[])
-{
-	// Save old resolution.
-	uint8_t oldResolution = getResolution(address);
-
-	// Set resolution to 9 bits since we wont use the fractional part in the comparison anyway.
-	setResolution(9, address);
-
-	float temp = getTempC(address);
-
-	if(temp <= scratchpad[ALARM_LOW] || temp >= scratchpad[ALARM_HIGH])
+	// Send reset pulse.
+	if(!oneWire.reset())
 	{
-		return 1;
-	}
-
-	return 0;
-}
-
-// Sets both high and low alarms.
-void DS18B20::setAlarms(uint8_t alarmLow, uint8_t alarmHigh, uint8_t address[])
-{
-	readScratchpad(address);
-
-	scratchpad[ALARM_LOW] = alarmLow;
-	scratchpad[ALARM_HIGH] = alarmHigh;
-
-	writeScratchpad(address);
-}
-
-// Returns the value of the low alarm.
-uint8_t DS18B20::getAlarmLow(uint8_t address[]) {
-	readScratchpad(address);
-
-	return scratchpad[ALARM_LOW];
-}
-
-// Sets the low alarm.
-void DS18B20::setAlarmLow(uint8_t alarmLow, uint8_t address[])
-{
-	readScratchpad(address);
-
-	scratchpad[ALARM_LOW] = alarmLow;
-
-	writeScratchpad(address);
-}
-
-// Returns the value of the high alarm.
-uint8_t DS18B20::getAlarmHigh(uint8_t address[])
-{
-	readScratchpad(address);
-
-	return scratchpad[ALARM_HIGH];
-}
-
-// Sets the high alarm.
-void DS18B20::setAlarmHigh(uint8_t alarmHigh, uint8_t address[])
-{
-	readScratchpad(address);
-
-	scratchpad[ALARM_HIGH] = alarmHigh;
-
-	writeScratchpad(address);
-}
-
-// Performs either a SEARCH_ROM or ALARM_SEARCH command.
-// Returns 1 or 0 indicating whether the search was successful or not.
-uint8_t DS18B20::search(uint8_t command, uint8_t address[])
-{
-	// Search is completed. Reset flag and return.
-	if(lastDevice)
-	{
-		resetSearch();
+		// No presence pulse(s).
 		return 0;
 	}
 
-	// No presence pulse(s).
-	if(!oneWire.reset())
+	// Send rom command.
+	switch(romCommand)
+	{
+		case SEARCH_ROM:
+		case SKIP_ROM:
+		case ALARM_SEARCH:
+			oneWire.write(romCommand);
+			break;
+		case MATCH_ROM:
+			oneWire.select(selectedAddress);
+			break;
+		default:
+			// Unsupported or unrecognized rom command.
+			return 0;
+	}
+
+	return 1;
+}
+
+// Sends a rom command followed by a function command to the selected device, with or without power on at the end.
+uint8_t DS18B20::sendCommand(uint8_t romCommand, uint8_t functionCommand, uint8_t power)
+{
+	// Rom command failed for some reason.
+	if(!sendCommand(romCommand))
+	{
+		return 0;
+	}
+
+	// Send function command.
+	switch(functionCommand)
+	{
+		case CONVERT_T:
+		case COPY_SCRATCHPAD:
+			oneWire.write(functionCommand, power);
+			break;
+		case WRITE_SCRATCHPAD:
+		case READ_SCRATCHPAD:
+		case READ_POWER_SUPPLY:
+			oneWire.write(functionCommand);
+			break;
+		default:
+			// Unsupported or unrecognized function command.
+			return 0;
+	}
+
+	return 1;
+}
+
+// Performs a 1-Wire search, either normal or conditional.
+uint8_t DS18B20::oneWireSearch(uint8_t romCommand)
+{
+	// No presence pulse(s) or search completed. Reset search variables and end search early.
+	if(lastDevice || !sendCommand(romCommand))
 	{
 		resetSearch();
 		return 0;
 	}
 
 	uint8_t lastZero = 0;
-	uint8_t direction;
-
-	// Send command.
-	oneWire.write(command);
+	uint8_t direction, byteNumber, bitNumber, currentBit, currentBitComp;
 
 	// Iterate through bits 0 to 63.
 	for(uint8_t bitPosition = 0; bitPosition < 64; bitPosition++)
 	{
-		// Current byte of the registration number and current bit number within that byte.
-		uint8_t byteNumber = bitPosition / 8;
-		uint8_t bitNumber = bitPosition % 8;
-
 		// Current bit and its complement.
-		uint8_t currentBit = oneWire.read_bit();
-		uint8_t currentBitComp = oneWire.read_bit();
+		currentBit = oneWire.read_bit();
+		currentBitComp = oneWire.read_bit();
 
 		// Happens if the device being discovered is disconnected, becomes faulty etc. during search.
 		if(currentBit && currentBitComp)
@@ -307,6 +452,10 @@ uint8_t DS18B20::search(uint8_t command, uint8_t address[])
 			lastDiscrepancy = 0;
 			return 0;
 		}
+
+		// Current byte of the registration number and current bit number within that byte.
+		byteNumber = bitPosition / 8;
+		bitNumber = bitPosition % 8;
 
 		// Discrepancy here. Both 0s and 1s at the current bit position.
 		if(!currentBit && !currentBitComp)
@@ -322,7 +471,7 @@ uint8_t DS18B20::search(uint8_t command, uint8_t address[])
 			}
 			else
 			{
-				direction = bitRead(registrationNumber[byteNumber], bitNumber);
+				direction = bitRead(searchAddress[byteNumber], bitNumber);
 
 				if(!direction)
 				{
@@ -336,69 +485,64 @@ uint8_t DS18B20::search(uint8_t command, uint8_t address[])
 		}
 
 		// Save current direction.
-		bitWrite(registrationNumber[byteNumber], bitNumber, direction);
+		bitWrite(searchAddress[byteNumber], bitNumber, direction);
 
-		// Deselect devices whose registration numbers do not match current direction.
+		// Select only devices whose addresses match current direction.
 		oneWire.write_bit(direction);
 	}
 
 	lastDiscrepancy = lastZero;
 
+	// Search completed.
 	if(!lastDiscrepancy)
 	{
 		lastDevice = 1;
 	}
 
-	// Copy registration number to address array.
-	memcpy(address, registrationNumber, 8);
+	return 1;
+}
+
+// Checks if the specified device is present on the bus.
+uint8_t DS18B20::isConnected(uint8_t address[])
+{
+	if(!sendCommand(SEARCH_ROM))
+	{
+		return 0;
+	}
+
+	uint8_t currentBit, currentBitComp, byteNumber, bitNumber;
+
+	// Iterate through bits 0 to 63.
+	for(uint8_t bitPosition = 0; bitPosition < 64; bitPosition++)
+	{
+		// Current bit and its complement.
+		currentBit = oneWire.read_bit();
+		currentBitComp = oneWire.read_bit();
+
+		if(currentBit && currentBitComp)
+		{
+			return 0;
+		}
+
+		// Current byte of the registration number and current bit number within that byte.
+		byteNumber = bitPosition / 8;
+		bitNumber = bitPosition % 8;
+
+		oneWire.write_bit(bitRead(address[byteNumber], bitNumber));
+	}
 
 	return 1;
 }
 
-// Reads the scratchpad of a device.
-void DS18B20::readScratchpad(uint8_t address[])
+// Delays for the amount of time required to perform a temperature conversion at the specified resolution and power mode.
+void DS18B20::delayForConversion(uint8_t resolution, uint8_t powerMode)
 {
-	// Start read sequence.
-	sendCommand(READ_SCRATCHPAD, address);
-
-	// Read entire scratchpad of the device.
-	for(uint8_t i = 0; i < SIZE_SCRATCHPAD; i++)
+	if(powerMode) // Device is being powered externally.
 	{
-		scratchpad[i] = oneWire.read();
+		// Poll sensor until temperature conversion is complete.
+		while(!oneWire.read_bit());
 	}
-}
-
-// Writes the scratchpad of a device into its EEPROM.
-void DS18B20::writeScratchpad(uint8_t address[])
-{
-	// Get power mode of the device.
-	uint8_t parasite = isParasite(address);
-
-	// Start write sequence.
-	sendCommand(WRITE_SCRATCHPAD, address);
-
-	// Write scratchpad buffer to the device.
-	oneWire.write(scratchpad[ALARM_HIGH]);
-	oneWire.write(scratchpad[ALARM_LOW]);
-	oneWire.write(scratchpad[CONFIGURATION]);
-
-	// Write scratchpad to EEPROM.
-	sendCommand(COPY_SCRATCHPAD, address, parasite);
-
-	// Delay for 10 ms if the device is running in parasitic power mode according to datasheet.
-	if(parasite)
-	{
-		delay(10);
-	}
-}
-
-// Delays for the amount of time required to perform a temperature conversion at the specified resolution.
-void DS18B20::delayForConversion(uint8_t resolution, uint8_t parasite)
-{
-	// Make sure that resolution is in range [9;12].
-	resolution = constrain(resolution, 9, 12);
-
-	if(parasite)
+	else // Device is running in parasitic power mode.
 	{
 		// Delay for the appropriate amount of time depending on the resolution.
 		switch(resolution)
@@ -417,41 +561,4 @@ void DS18B20::delayForConversion(uint8_t resolution, uint8_t parasite)
 				break;
 		}
 	}
-	else
-	{
-		// Poll sensor until temperature conversion is complete.
-		while(!oneWire.read_bit());
-	}
-}
-
-// Sends a command to all devices, with or without parasitic power at the end.
-void DS18B20::sendCommand(uint8_t command, uint8_t parasite)
-{
-	// Send reset pulse.
-	if(!oneWire.reset())
-	{
-		// No presence pulse(s). Maybe do some error handling.
-	}
-
-	// Select all devices.
-	oneWire.skip();
-
-	// Send command.
-	oneWire.write(command, parasite);
-}
-
-// Sends a command to a device, with or without parasitic power at the end.
-void DS18B20::sendCommand(uint8_t command, uint8_t address[], uint8_t parasite)
-{
-	// Send reset pulse.
-	if(!oneWire.reset())
-	{
-		// No presence pulse(s). Maybe do some error handling.
-	}
-
-	// Select device with corresponding address.
-	oneWire.select(address);
-
-	// Send command.
-	oneWire.write(command, parasite);
 }
