@@ -24,6 +24,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef DS18B20_H
 #define DS18B20_H
 
+#if ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "WProgram.h"
+#endif
+
 #include <OneWire.h>
 
 // Commands.
@@ -72,11 +78,6 @@ class DS18B20
 	public:
 		DS18B20(uint8_t pin);
 
-
-		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// Before communicating with a device it must be selected using one of the functions below (except resetSearch). //
-		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 		// Selects the device with the specified address if it is present.
 		uint8_t select(uint8_t address[]);
 
@@ -88,11 +89,6 @@ class DS18B20
 
 		// Resets the search so that the next search will return the first device again.
 		void resetSearch();
-
-
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// After successfully selecting a device these functions can be used to communicate with the selected device. //
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		// Returns the current temperature in degrees Celcius.
 		float getTempC();
@@ -115,69 +111,48 @@ class DS18B20
 		// Copies the address of the selected device into the supplied array.
 		void getAddress(uint8_t address[]);
 
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// These functions are "global", and may be used without first selecting a device. //
-		/////////////////////////////////////////////////////////////////////////////////////
-
 		// Tells every device on the bus to start a temperature conversion and delays until it is completed.
 		void doConversion();
 
 		// Returns the number of devices present on the bus.
 		uint8_t getNumberOfDevices();
 
-
-		//////////////////////////////
-		// Alarm related functions. //
-		//////////////////////////////
-
 		// Checks if the selected device has an active alarm condition.
 		uint8_t hasAlarm();
 
 		// Sets both alarms of the selected device.
-		void setAlarms(uint8_t alarmLow, uint8_t alarmHigh);
+		void setAlarms(int8_t alarmLow, int8_t alarmHigh);
 
 		// Returns the low alarm value of the selected device.
-		uint8_t getAlarmLow();
+		int8_t getAlarmLow();
 
 		// Sets the low alarm value of the selected device.
-		void setAlarmLow(uint8_t alarmLow);
+		void setAlarmLow(int8_t alarmLow);
 
 		// Returns the high alarm value of the selected device.
-		uint8_t getAlarmHigh();
+		int8_t getAlarmHigh();
 
 		// Sets the high alarm value of the selected device.
-		void setAlarmHigh(uint8_t alarmHigh);
-
-
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// Some more appropriate function names if the alarm registers are to be used as general purpose storage. //
-		//                            DO NOT use these if you are already using alarms.                           //
-		////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		void setAlarmHigh(int8_t alarmHigh);
 
 		// Sets both registers of the selected device.
-		void setRegisters(uint8_t lowRegister, uint8_t highRegister);
+		void setRegisters(int8_t lowRegister, int8_t highRegister);
 
 		// Returns the low register value of the selected device.
-		uint8_t getLowRegister();
+		int8_t getLowRegister();
 
 		// Sets the low register value of the selected device.
-		void setLowRegister(uint8_t lowRegister);
+		void setLowRegister(int8_t lowRegister);
 
 		// Returns the high register value of the selected device.
-		uint8_t getHighRegister();
+		int8_t getHighRegister();
 
 		// Sets the high register value of the selected device.
-		void setHighRegister(uint8_t highRegister);
+		void setHighRegister(int8_t highRegister);
 
 	private:
 		// OneWire object needed to communicate with 1-Wire devices.
 		OneWire oneWire;
-
-
-		//////////////////////////////////////////////////////////////
-		// Collective information about all the devices on the bus. //
-		//////////////////////////////////////////////////////////////
 
 		// The highest resolution of any device on the bus.
 		uint8_t globalResolution;
@@ -187,11 +162,6 @@ class DS18B20
 
 		// The number of devices on the bus.
 		uint8_t numberOfDevices;
-
-
-		////////////////////////////////////////////
-		// Information about the selected device. //
-		////////////////////////////////////////////
 
 		// 64 bit address of the selected device.
 		uint8_t selectedAddress[8];
@@ -205,11 +175,6 @@ class DS18B20
 		// Power mode of the selected device.
 		uint8_t selectedPowerMode;
 
-
-		/////////////////////////////////////
-		// Global search state parameters. //
-		/////////////////////////////////////
-
 		// Most recent address discovered by searching.
 		uint8_t searchAddress[8];
 
@@ -218,11 +183,6 @@ class DS18B20
 
 		// Indicates whether or not a search is completed (i.e. last device has been found).
 		uint8_t lastDevice;
-
-
-		//////////////////////////////////
-		// Various auxiliary functions. //
-		//////////////////////////////////
 
 		// Reads the scratchpad of the selected device.
 		uint8_t readScratchpad();
