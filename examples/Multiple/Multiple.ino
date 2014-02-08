@@ -42,10 +42,7 @@ void loop()
   // Iterate through all devices.
   while(ds.selectNext())
   {
-    ////////////////////////
-    // Print family name. //
-    ////////////////////////
-    
+    // Print family name.
     switch(ds.getFamilyCode())
     {
       case MODEL_DS18S20:
@@ -62,11 +59,7 @@ void loop()
         break;
     }
     
-    
-    ////////////////////
-    // Print address. //
-    ////////////////////
-    
+    // Print address.
     uint8_t address[8];
     
     ds.getAddress(address);
@@ -81,19 +74,11 @@ void loop()
     
     Serial.println();
     
-    
-    ///////////////////////
-    // Print resolution. //
-    ///////////////////////
-    
+    // Print resolution.
     Serial.print("Resolution: ");
     Serial.println(ds.getResolution());
     
-    
-    ///////////////////////
-    // Print power mode. //
-    ///////////////////////
-    
+    // Print power mode.
     Serial.print("Power Mode: ");
     
     if(ds.getPowerMode())
@@ -105,17 +90,12 @@ void loop()
       Serial.println("Parasite");
     }
     
-    
-    //////////////////////////////////////////////////////////////////
-    // Print temperature in degrees Celcius and degrees Fahrenheit. //
-    //////////////////////////////////////////////////////////////////
-    
+    // Print temperature in degrees Celcius and degrees Fahrenheit.
     Serial.print("Temperature: ");
     Serial.print(ds.getTempC());
     Serial.print(" C / ");
     Serial.print(ds.getTempF());
     Serial.println(" F");
-    
     
     // Print an empty line.
     Serial.println();

@@ -24,10 +24,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <OneWire.h>
 #include <DS18B20.h>
 
-// Low alarm in degrees Celcius.
+// Low/high alarm in degrees Celcius.
 #define LOW_ALARM 20
-
-// High alarm in degrees Celcius.
 #define HIGH_ALARM 25
 
 // 1-Wire devices connected to digital pin 2 on the Arduino.
@@ -53,7 +51,7 @@ void setup()
   }
   else
   {
-    Serial.println("Error");
+    Serial.println("Device not found!");
   }
 }
 
@@ -71,7 +69,7 @@ void loop()
   }
   else
   {
-    Serial.println("Error");
+    Serial.println("Device not found!");
   }
   
   // Wait 10 seconds.
