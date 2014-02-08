@@ -11,11 +11,23 @@ In the **OneWire.h** file set `ONEWIRE_SEARCH` to 0 since the search functionali
 For general usage see the included examples.
 
 ## Wiring the DS18B20 ##
+The resistor shown in all the circuit diagrams is 4.7k Ohm pullup resistor.
 
 ### External Power Mode ###
 
-![An externally powered DS18B20](/images/single_external.svg)
+#### Single ####
+![A single externally powered DS18B20](/images/single_external.png)
+
+#### Multiple ####
+![Multiple externally powered DS18B20s](/images/multiple_external.png)
 
 ### Parasitic Power Mode ###
 
+#### Single ####
+![A single parasite powered DS18B20](/images/single_parasite.png)
+
+#### Multiple ####
+![Multiple parasite powered DS18B20s](/images/multiple_parasite.png)
+
 ### Mixed Power Mode ###
+![Mixed mode DS18B20s](/images/mixed_mode.png)
