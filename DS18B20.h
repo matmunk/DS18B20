@@ -193,7 +193,7 @@ class DS18B20
 		// Sends a rom command to the selected device.
 		uint8_t sendCommand(uint8_t romCommand);
 
-		// Sends a rom command followed by a function command to the selected device, with or without power on at the end.
+		// Sends a rom command followed by a function command to the selected device.
 		uint8_t sendCommand(uint8_t romCommand, uint8_t functionCommand, uint8_t power = 0);
 
 		// Performs a 1-Wire search, either normal or conditional.
@@ -202,7 +202,7 @@ class DS18B20
 		// Checks if the specified device is present on the bus.
 		uint8_t isConnected(uint8_t address[]);
 
-		// Delays for the amount of time required to perform a temperature conversion at the specified resolution and power mode.
+		// Delays for the amount of time required to perform a temperature conversion.
 		void delayForConversion(uint8_t resolution, uint8_t powerMode);
 };
 

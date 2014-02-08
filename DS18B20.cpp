@@ -366,7 +366,7 @@ uint8_t DS18B20::sendCommand(uint8_t romCommand)
 	return 1;
 }
 
-// Sends a rom command followed by a function command to the selected device, with or without power on at the end.
+// Sends a rom command followed by a function command to the selected device.
 uint8_t DS18B20::sendCommand(uint8_t romCommand, uint8_t functionCommand, uint8_t power)
 {
 	// Rom command failed for some reason.
@@ -498,7 +498,7 @@ uint8_t DS18B20::isConnected(uint8_t address[])
 	return 1;
 }
 
-// Delays for the amount of time required to perform a temperature conversion at the specified resolution and power mode.
+// Delays for the amount of time required to perform a temperature conversion.
 void DS18B20::delayForConversion(uint8_t resolution, uint8_t powerMode)
 {
 	if(powerMode)
