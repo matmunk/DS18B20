@@ -14,7 +14,7 @@ For general usage see the included examples.
 
 ### External Power Mode ###
 
-![An externally powered DS18B20](/images/single_external.png)
+![An externally powered DS18B20](/images/single_external.svg)
 
 ### Parasitic Power Mode ###
 
