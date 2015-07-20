@@ -59,7 +59,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ALARM_HIGH    2
 #define ALARM_LOW     3
 #define CONFIGURATION 4
-#define CRC           8
+#define CRC8          8
 
 // Resolution values.
 #define RES_9_BIT  0x1F
