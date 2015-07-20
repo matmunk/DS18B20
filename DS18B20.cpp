@@ -317,7 +317,7 @@ uint8_t DS18B20::readScratchpad()
 		selectedScratchpad[i] = oneWire.read();
 	}
 
-	return OneWire::crc8(selectedScratchpad, 8) == selectedScratchpad[CRC];
+	return OneWire::crc8(selectedScratchpad, 8) == selectedScratchpad[CRC8];
 }
 
 // Writes the scratchpad of the selected device into its EEPROM.
