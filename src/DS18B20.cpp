@@ -1,6 +1,12 @@
 #include <DS18B20.h>
 
-DS18B20::DS18B20(uint8_t pin) : oneWire(OneWire(pin)) {
+DS18B20::DS18B20(uint8_t pin) :
+    oneWire(OneWire(pin)),
+    numberOfDevices(0),
+    globalResolution(0),
+    selectedResolution(0),
+    selectedPowerMode(0)
+{
     resetSearch();
     sendCommand(SKIP_ROM, READ_POWER_SUPPLY);
     globalPowerMode = oneWire.read_bit();
