@@ -103,6 +103,8 @@ uint8_t DS18B20::getResolution() {
             return 11;
         case RES_12_BIT:
             return 12;
+        default:
+            return -1; //Avoid warning [-Wreturn-type]
     }
 }
 
