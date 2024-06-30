@@ -148,9 +148,9 @@ void DS18B20::getAddress(uint8_t address[]) {
     memcpy(address, selectedAddress, 8);
 }
 
-void DS18B20::doConversion() {
+void DS18B20::doConversion( bool wait ) {
     sendCommand(SKIP_ROM, CONVERT_T, !globalPowerMode);
-    delayForConversion(globalResolution, globalPowerMode);
+    delayForConversion(globalResolution, globalPowerMode, wait);
 }
 
 uint8_t DS18B20::getNumberOfDevices() {
@@ -350,10 +350,10 @@ uint8_t DS18B20::isConnected(uint8_t address[]) {
     return 1;
 }
 
-void DS18B20::delayForConversion(uint8_t resolution, uint8_t powerMode) {
+void DS18B20::delayForConversion(uint8_t resolution, uint8_t powerMode, bool wait ) {
     if (powerMode) {
         while (!oneWire.read_bit());
-    } else {
+    } else if (wait) {
         switch (resolution) {
             case 9:
                 delay(CONV_TIME_9_BIT);

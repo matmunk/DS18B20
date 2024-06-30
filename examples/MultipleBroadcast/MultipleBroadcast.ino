@@ -1,10 +1,11 @@
 #include <DS18B20.h>
 
 /* Configuration (start) */
-const uint8_t CFG_N_DEVICES = 17; // number of sensors in the system
-const uint8_t CFG_BUS_PIN   = 2;  // 1-Wire data pin
+const uint8_t CFG_N_DEVICES = 2; // number of sensors in the system
+const uint8_t CFG_BUS_PIN   = 3;  // 1-Wire data pin
+const uint8_t CFG_INTERVAL  = 1000; // one second
 
-/* The INTERVAL value MUST be consistent with the sensor conversion time (see the documentation)
+/* The CFG_INTERVAL value MUST be consistent with the sensor conversion time (see the documentation)
  Sensor conversion time table:
    --------------------------------
    Resolution           | Time
@@ -15,7 +16,6 @@ const uint8_t CFG_BUS_PIN   = 2;  // 1-Wire data pin
    9  bit               | 750ms / 8
    --------------------------------
 */
-const uint16_t CFG_INTERVAL = 25000;// f [Hz] = (16000000 / ((CFG INTERVAL + 1) * 1024)) = 15625 / (CFG_INTERVAL + 1)
 
 /* A NOTE ON THE RESOLUTION SETTING:
 
@@ -87,52 +87,27 @@ void SensorData::reset()
 /* Global (start) */
 DS18B20 sensor( CFG_BUS_PIN );
 SensorData sensors[CFG_N_DEVICES];
-volatile bool updateSensors = true;
 /* Global (end) */
-
-void timerSetup()
-{
-  noInterrupts();
-
-  TCCR1A = TCCR1B = TCNT1 = 0;
-  OCR1A = CFG_INTERVAL;
-  TCCR1B |= (1 << WGM12);
-  TCCR1B |= (1 << CS12) | (1 << CS10);
-  TIMSK1 |= (1 << OCIE1A);
-
-  interrupts();
-}
 
 void setup()
 {
   Serial.begin( 115200 );
-
-  pinMode( CFG_BUS_PIN, INPUT );
-
-  timerSetup();
 }
+
+unsigned long now = 0;
 
 void loop()
 {
-  if( not updateSensors )
+  if( millis() - now > CFG_INTERVAL )
   {
-    return;
-  }
-
-  noInterrupts();
-  
-  updateSensors = false;
-  
-  for( uint8_t i = 0; i < CFG_N_DEVICES; ++i )
-  {
-    sensors[i].reset();
-  }
-
-  for( uint8_t i = 0; sensor.selectNext() and (i < CFG_N_DEVICES); ++i )
-  {
-    sensors[i].temperature = sensor.getTempCFromScratchPad();
-    sensors[i].resolution  = sensor.getResolution();
-    sensor.getAddress( sensors[i].address );
+      for( uint8_t i = 0; sensor.selectNext() and (i < CFG_N_DEVICES); ++i )
+      {
+        sensors[i].temperature = sensor.getTempCFromScratchPad();
+        sensors[i].resolution  = sensor.getResolution();
+        sensor.getAddress( sensors[i].address );
+      }
+      sensor.doConversion( false );
+      now = millis();
   }
 
 #ifdef CFG_TABLE_VIEW
@@ -153,12 +128,4 @@ void loop()
       Serial.println();
     }
 #endif
-
-  interrupts();
-}
-
-ISR(TIMER1_COMPA_vect)
-{
-  sensor.doConversion();
-  updateSensors = true;
 }

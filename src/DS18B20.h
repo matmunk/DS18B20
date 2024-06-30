@@ -50,7 +50,7 @@ class DS18B20 {
         uint8_t getPowerMode();
         uint8_t getFamilyCode();
         void getAddress(uint8_t address[]);
-        void doConversion();
+        void doConversion( bool wait = true);
         uint8_t getNumberOfDevices();
         uint8_t hasAlarm();
         void setAlarms(int8_t alarmLow, int8_t alarmHigh);
@@ -81,7 +81,7 @@ class DS18B20 {
         uint8_t sendCommand(uint8_t romCommand, uint8_t functionCommand, uint8_t power = 0);
         uint8_t oneWireSearch(uint8_t romCommand);
         uint8_t isConnected(uint8_t address[]);
-        void delayForConversion(uint8_t resolution, uint8_t powerMode);
+        void delayForConversion(uint8_t resolution, uint8_t powerMode, bool wait = true);
 };
 
 #endif
