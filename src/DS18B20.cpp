@@ -351,6 +351,9 @@ uint8_t DS18B20::isConnected(uint8_t address[]) {
 }
 
 void DS18B20::delayForConversion(uint8_t resolution, uint8_t powerMode, bool wait ) {
+    if( not wait ) {
+        return;
+    }
     if (powerMode) {
         while (!oneWire.read_bit());
     } else if (wait) {

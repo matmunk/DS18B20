@@ -91,7 +91,7 @@ SensorData sensors[CFG_N_DEVICES];
 
 void setup()
 {
-  Serial.begin( 115200 );
+  Serial.begin( 9600 );
 }
 
 unsigned long now = 0;
