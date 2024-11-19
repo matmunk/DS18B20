@@ -42,14 +42,15 @@ class DS18B20 {
         uint8_t selectNext();
         uint8_t selectNextAlarm();
         void resetSearch();
-        float getTempC();
-        float getTempF();
+        float getTempC(bool convertAndWait = true);
+        float getTempF(bool convertAndWait = true);
         uint8_t getResolution();
         void setResolution(uint8_t resolution);
         uint8_t getPowerMode();
         uint8_t getFamilyCode();
         void getAddress(uint8_t address[]);
-        void doConversion();
+        void startConversion(); // Start a conversion
+        void doConversion(); // Start a conversion and wait for the result
         uint8_t getNumberOfDevices();
         uint8_t hasAlarm();
         void setAlarms(int8_t alarmLow, int8_t alarmHigh);
@@ -62,6 +63,7 @@ class DS18B20 {
         void setLowRegister(int8_t lowRegister);
         int8_t getHighRegister();
         void setHighRegister(int8_t highRegister);
+        bool conversionComplete();
     private:
         OneWire oneWire;
         uint8_t globalResolution;

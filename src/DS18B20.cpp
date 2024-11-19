@@ -2,8 +2,8 @@
 
 DS18B20::DS18B20(uint8_t pin) :
     oneWire(OneWire(pin)),
-    numberOfDevices(0),
     globalResolution(0),
+    numberOfDevices(0),
     selectedResolution(0),
     selectedPowerMode(0)
 {
@@ -60,9 +60,10 @@ void DS18B20::resetSearch() {
     lastDevice = 0;
 }
 
-float DS18B20::getTempC() {
-    sendCommand(MATCH_ROM, CONVERT_T, !selectedPowerMode);
-    delayForConversion(selectedResolution, selectedPowerMode);
+float DS18B20::getTempC(bool convertAndWait) {
+    if (convertAndWait) 
+	startConversion();
+    delayForConversion(globalResolution, globalPowerMode); // will return immediately if conversion is already complete.
     readScratchpad();
     uint8_t lsb = selectedScratchpad[TEMP_LSB];
     uint8_t msb = selectedScratchpad[TEMP_MSB];
@@ -89,8 +90,8 @@ float DS18B20::getTempC() {
     return temp / 16.0;
 }
 
-float DS18B20::getTempF() {
-    return getTempC() * 1.8 + 32;
+float DS18B20::getTempF(bool convertAndWait) {
+    return getTempC(convertAndWait) * 1.8 + 32;
 }
 
 uint8_t DS18B20::getResolution() {
@@ -144,8 +145,12 @@ void DS18B20::getAddress(uint8_t address[]) {
     memcpy(address, selectedAddress, 8);
 }
 
-void DS18B20::doConversion() {
+void DS18B20::startConversion() {
     sendCommand(SKIP_ROM, CONVERT_T, !globalPowerMode);
+}
+
+void DS18B20::doConversion() {
+    startConversion();
     delayForConversion(globalResolution, globalPowerMode);
 }
 
