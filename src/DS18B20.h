@@ -49,6 +49,8 @@ class DS18B20 {
         uint8_t getPowerMode();
         uint8_t getFamilyCode();
         void getAddress(uint8_t address[]);
+	String getAddress(bool showCRC=false);
+
         void doConversion();
         uint8_t getNumberOfDevices();
         uint8_t hasAlarm();

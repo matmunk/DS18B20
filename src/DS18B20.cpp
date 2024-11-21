@@ -144,6 +144,23 @@ void DS18B20::getAddress(uint8_t address[]) {
     memcpy(address, selectedAddress, 8);
 }
 
+// Wire order as read: 28 50 00 A0 07 00 00 E3
+// 1-Wire address    : 28-000007a00050 (crc E3) 
+//
+String DS18B20::getAddress(bool showCRC) {
+    char tmp[24];
+    snprintf(tmp,sizeof(tmp),"%02X-%02X%02X%02X%02X%02X%02X",
+        selectedAddress[0], /* Family Code */
+        /* Output the unique 56 bit ID in network order */
+        selectedAddress[6], selectedAddress[5], selectedAddress[4],
+        selectedAddress[3], selectedAddress[2], selectedAddress[1]
+    );
+    if (showCRC) 
+        snprintf(tmp+15,sizeof(tmp)-15,"-%02X", selectedAddress[7]);
+
+    return String(tmp);
+}
+
 void DS18B20::doConversion() {
     sendCommand(SKIP_ROM, CONVERT_T, !globalPowerMode);
     delayForConversion(globalResolution, globalPowerMode);
