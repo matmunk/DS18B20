@@ -44,6 +44,8 @@ class DS18B20 {
         void resetSearch();
         float getTempC();
         float getTempF();
+        float readTempC();
+        float readTempF();
         uint8_t getResolution();
         void setResolution(uint8_t resolution);
         uint8_t getPowerMode();
