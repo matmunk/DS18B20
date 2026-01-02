@@ -2,10 +2,13 @@
 
 DS18B20::DS18B20(uint8_t pin) :
     oneWire(OneWire(pin)),
-    numberOfDevices(0),
     globalResolution(0),
+    globalPowerMode(0),
+    numberOfDevices(0),
     selectedResolution(0),
-    selectedPowerMode(0)
+    selectedPowerMode(0),
+    lastDiscrepancy(0),
+    lastDevice(0)
 {
     resetSearch();
     sendCommand(SKIP_ROM, READ_POWER_SUPPLY);
